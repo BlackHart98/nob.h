@@ -598,6 +598,75 @@ NOBDEF bool nob_set_current_dir(const char *path);
 #  define nob_cc_inputs(cmd, ...) nob_cmd_append(cmd, __VA_ARGS__)
 #endif // nob_cc_inputs
 
+
+#ifndef nob__cc_std
+#  if _WIN32
+#    if defined(__GNUC__)
+#       define nob__cc_std(cmd, std_ver) nob_cmd_append(cmd, "cc", nob_temp_sprintf("-std=%s", std_ver))
+#    elif defined(__clang__)
+#       define nob__cc_std(cmd, std_ver) nob_cmd_append(cmd, "clang", nob_temp_sprintf("-std=%s", std_ver))
+#    elif defined(_MSC_VER)
+#       define nob__cc_std(cmd, std_ver) nob_cmd_append(cmd, "cl.exe", std_ver)
+#    endif
+#  else
+#    define nob__cc_std(cmd, std_ver) nob_cmd_append(cmd, "cc", nob_temp_sprintf("-std=%s", std_ver))
+#  endif
+#endif // nob__cc_std
+
+
+#ifndef nob_cc_99
+#  define nob_cc_99(cmd) nob__cc_std(cmd, "c99") // STDC99
+#endif // nob_cc_99
+
+#ifndef nob_cc_11
+#  define nob_cc_11(cmd) nob__cc_std(cmd, "c11") // STDC11
+#endif // nob_cc_11
+
+#ifndef nob_cc_18
+#  define nob_cc_18(cmd) nob__cc_std(cmd, "c18") // STDC18
+#endif // nob_cc_18
+
+
+
+#ifndef nob_cc_add_define
+#   if defined(_MSC_VER) && !defined(__clang__)
+#      define nob_cc_add_define(cmd, define_macro) nob_cmd_append(cmd, nob_temp_sprintf("/D%s", define_macro))
+#   else
+#      define nob_cc_add_define(cmd, define_macro) nob_cmd_append(cmd, nob_temp_sprintf("-D%s", define_macro))
+#   endif
+#endif // nob_cc_add_define
+
+
+#if defined(__APPLE__) || defined(__MACH__)
+#   ifndef nob_cc_add_framework
+#       define nob_cc_add_framework(cmd, framework) nob_cmd_append(cmd, "-framework", framework)
+#   endif // nob_cc_add_framework
+#endif
+
+
+#ifndef nob_cc_add_includes
+#   if !defined(_MSC_VER) && !defined(__clang__)
+#       define nob_cc_add_include(cmd, include_dir) nob_cmd_append(cmd, nob_temp_sprintf("/I%s", include_dir))
+#   else
+#      define nob_cc_add_include(cmd, include_dir) nob_cmd_append(cmd, nob_temp_sprintf("-I%s", include_dir))
+#   endif
+#endif // nob_cc_add_includes
+
+
+#ifndef nob_cc_sharedlib_output
+#   define nob_cc_sharedlib_output(cmd, ...) nob_cc_sharedlib_output_opt(cmd, (Nob_Shared_Opt){__VA_ARGS__})
+#endif // nob_cc_sharedlib_outputrary
+
+
+typedef struct {
+    const char *lib_dir;
+    const char *lib_name;
+} Nob_Shared_Opt;
+
+
+NOBDEF void nob_cc_sharedlib_output_opt(Nob_Cmd *cmd, Nob_Shared_Opt shared_obj);
+
+
 // TODO: add MinGW support for Go Rebuild Urself™ Technology and all the nob_cc_* macros above
 //   Musializer contributors came up with a pretty interesting idea of an optional prefix macro which could be useful for
 //   MinGW support:
@@ -667,6 +736,7 @@ typedef struct {
 NOBDEF const char *nob_temp_sv_to_cstr(Nob_String_View sv);
 
 NOBDEF Nob_String_View nob_sv_chop_by_delim(Nob_String_View *sv, char delim);
+NOBDEF Nob_String_View nob_sv_chop_left(Nob_String_View *sv, size_t n);
 NOBDEF Nob_String_View nob_sv_chop_left(Nob_String_View *sv, size_t n);
 NOBDEF Nob_String_View nob_sv_trim(Nob_String_View sv);
 NOBDEF Nob_String_View nob_sv_trim_left(Nob_String_View sv);
@@ -1988,6 +2058,7 @@ NOBDEF Nob_String_View nob_sv_chop_left(Nob_String_View *sv, size_t n)
     return result;
 }
 
+
 NOBDEF Nob_String_View nob_sv_from_parts(const char *data, size_t count)
 {
     Nob_String_View sv;
@@ -2209,6 +2280,17 @@ NOBDEF int closedir(DIR *dirp)
 #endif // _WIN32
 // minirent.h SOURCE END ////////////////////////////////////////
 
+
+NOBDEF void nob_cc_sharedlib_output_opt(Nob_Cmd *cmd, Nob_Shared_Opt shared_obj){
+#if defined(__APPLE__) || defined(__MACH__)
+    nob_cmd_append(cmd, "-dynamiclib", "-o", nob_temp_sprintf("%slib%s.dylib", shared_obj.lib_dir, shared_obj.lib_name));
+#elif defined(__linux__)
+    nob_cmd_append(cmd, "-fPIC", "-shared", "-o", nob_temp_sprintf("%s%s.so", shared_obj.lib_dir, shared_obj.lib_name));
+#else
+    NOB_TODO("Shared object for windows and freebsd not yet implemented")
+#endif
+}
+
 #endif // NOB_IMPLEMENTATION
 
 #ifndef NOB_STRIP_PREFIX_GUARD_
@@ -2312,6 +2394,7 @@ NOBDEF int closedir(DIR *dirp)
         #define String_View Nob_String_View
         #define temp_sv_to_cstr nob_temp_sv_to_cstr
         #define sv_chop_by_delim nob_sv_chop_by_delim
+        #define sv_chop_left nob_sv_chop_left
         #define sv_chop_left nob_sv_chop_left
         #define sv_trim nob_sv_trim
         #define sv_trim_left nob_sv_trim_left
