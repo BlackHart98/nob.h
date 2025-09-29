@@ -159,7 +159,7 @@ NOBDEF bool nob__add_package(Nob_Cmd *cmd, Nob_Repository repo, const char *pack
         const char *temp_ = nob_temp_sv_to_cstr(nob_sv_from_parts(package_sb.items, 1));
         if(!nob_parse_manifest_file(
             &mnfst, 
-            nob_temp_sprintf("%s/%s/%s/%s.ini", manifest_dir, temp_, package, package))) nob_return_defer(false);
+            nob_temp_sprintf("%s/%s%s/%s/%s.ini", manifest_dir, NOB_REMOTE_DEPENDENCIES, temp_, package, package))) nob_return_defer(false);
         nob_cmd_append(
             cmd, 
             "git", 
@@ -216,11 +216,11 @@ NOBDEF bool nob_parse_manifest_file(Nob_manifest_meta *mnfst, const char *mnfst_
         }
         else if (0 != (NOB_INI_PACKAGE_STATE & state)){
             if (nob_sv_starts_with(token, nob_sv_from_cstr("name=")) && (0 == (state & NOB_INI_PACKAGE_NAME_STATE))){
-                Nob_String_View temp_ = nob_sv_chop_left2(&token, strlen("name="));
+                Nob_String_View temp_ = nob_sv_chop_left(&token, strlen("name="));
                 memcpy((char *)mnfst->package_name, temp_.data, token.count);
                 state |= NOB_INI_PACKAGE_NAME_STATE;
             } else if (nob_sv_starts_with(token, nob_sv_from_cstr("url=")) && (0 ==(state & NOB_INI_PACKAGE_URL_STATE) )){
-                Nob_String_View temp_ = nob_sv_chop_left2(&token, strlen("url="));
+                Nob_String_View temp_ = nob_sv_chop_left(&token, strlen("url="));
                 memcpy((char *)mnfst->url, temp_.data, token.count);
                 state |= NOB_INI_PACKAGE_URL_STATE;
             } else {
