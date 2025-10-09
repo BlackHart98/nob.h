@@ -1,4 +1,4 @@
-/* nob_fetch - v0.1.0 - Public Domain ...
+/* nob_fetch - v0.1.0 - Public Domain https://github.com/BlackHart98/nob.h/tree/private/nob_fetch_extends
     This library in an extension of the nob library [NoBuild](https://github.com/tsoding/nobuild) to support
     remote fetch of C source files, it takes a build it yourself approach. This project is still largely experimental
 
@@ -36,7 +36,7 @@
     $ cc -o nob nob.c
     $ ./nob
     ```
-    # For more information of how the self-hosted manifest repository works visit ...
+    # For more information of how the self-hosted manifest repository works visit https://github.com/BlackHart98/jafar__local
 
 */
 
@@ -47,9 +47,10 @@
 #include "nob.h"
 
 
-#define GITHUB_MANIFEST_URL "https://raw.githubusercontent.com/"
+#define GITHUB_CONTENT_URL "https://raw.githubusercontent.com/"
 #define GITHUB_URL "https://github.com/"
 #define NOB_REMOTE_DEPENDENCIES "packages/"
+#define NOB_EXTERNAL_SOURCES "externals/"
 #define NOB_HOME_DIR "HOME"
 #define MAX_BUFFER_SIZE 200
 
@@ -113,9 +114,12 @@ NOBDEF bool nob__fetch_src_from_package(
     const char *package, 
     const char *version, 
     const char *vault, 
-    const char *src_files[],
-    size_t num_of_files);
+    const char *src_file
+    // size_t num_of_files
+    );
 NOBDEF bool nob_parse_manifest_file(Nob_manifest_meta *mnfst, const char *mnfst_path);
+NOBDEF bool nob__fetch_src_file(Nob_Cmd *cmd, const char *url, const char *src_file);
+
 
 #endif // NOB_FETCH_
 
@@ -150,6 +154,7 @@ NOBDEF bool nob__add_package(Nob_Cmd *cmd, Nob_Repository repo, const char *pack
                 "git", 
                 "clone", 
                 "--depth=1",
+                "--silent",
                 nob_temp_sprintf("%s%s/%s.git", GITHUB_URL, repo.owner, repo.repository),
                 manifest_dir
             );
@@ -165,6 +170,7 @@ NOBDEF bool nob__add_package(Nob_Cmd *cmd, Nob_Repository repo, const char *pack
             "git", 
             "clone", 
             "--depth=1",
+            "--silent",
             nob_temp_sprintf("%s", mnfst.url),
             nob_temp_sprintf("%s%s", NOB_REMOTE_DEPENDENCIES, mnfst.package_name));
     }
@@ -175,21 +181,24 @@ NOBDEF bool nob__add_package(Nob_Cmd *cmd, Nob_Repository repo, const char *pack
         return result;
 }
 
-// this function checks if files is 
-NOBDEF bool nob__fetch_src_from_package(
-    Nob_Cmd *cmd, 
-    Nob_Repository repo, 
-    const char *package, 
-    const char *version, 
-    const char *vault, 
-    const char *src_files[],
-    size_t num_of_files)
+// this function checks fetches file
+NOBDEF bool nob__fetch_src_file(Nob_Cmd *cmd, const char *url, const char *src_file)
 {
+    nob_mkdir_if_not_exists(NOB_EXTERNAL_SOURCES);
+    NOB_ASSERT((NULL != url)&&(NULL != src_file));
     bool result = false;
-    return result;
+#if !defined(_WIN32)
+    nob_cmd_append(cmd, "curl", "-L", url, "--quiet" , "-o", nob_temp_sprintf(NOB_EXTERNAL_SOURCES"%s", src_file));
+    if (nob_cmd_run(cmd))
+        nob_return_defer(true);
+#endif
+    defer:
+        nob_temp_reset();
+        return result;
 }
 
 
+// Todo: I might use a complete .ini parser
 NOBDEF bool nob_parse_manifest_file(Nob_manifest_meta *mnfst, const char *mnfst_path)
 {
     nob_log(NOB_INFO, "Opening %s", mnfst_path);
